@@ -15,7 +15,7 @@ export class ProductSeeder extends Seeder {
       updatedAt: new Date(),
     });
 
-    em.persist(supplier);
+    await em.persistAndFlush(supplier);
 
     // Create test products
     const products = [
