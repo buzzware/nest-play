@@ -264,30 +264,30 @@ describe('ProductController', () => {
       await expect(productController.update(nonExistentId, updateData)).rejects.toThrow(NotFoundException);
     });
   });
-  //
-  // describe('remove', () => {
-  //   it('should delete the product and return confirmation when it exists', async () => {
-  //     // Arrange - get a product ID from the seeded data
-  //     const products = await productRepository.findAll();
-  //     const productToDelete = products[0];
-  //
-  //     // Act
-  //     const result = await productController.remove(productToDelete.id);
-  //
-  //     // Assert
-  //     expect(result).toEqual({ deleted: true });
-  //
-  //     // Verify the product was removed from the database
-  //     const deletedProduct = await productRepository.findOne(productToDelete.id);
-  //     expect(deletedProduct).toBeNull();
-  //   });
-  //
-  //   it('should throw NotFoundException when product does not exist', async () => {
-  //     // Arrange
-  //     const nonExistentId = 9999;
-  //
-  //     // Act & Assert
-  //     await expect(productController.remove(nonExistentId)).rejects.toThrow(NotFoundException);
-  //   });
-  // });
+
+  describe('remove', () => {
+    it('should delete the product and return confirmation when it exists', async () => {
+      // Arrange - get a product ID from the seeded data
+      const products = await productRepository.findAll();
+      const productToDelete = products[0];
+
+      // Act
+      const result = await productController.remove(productToDelete.id);
+
+      // Assert
+      expect(result).toEqual({ deleted: true });
+
+      // Verify the product was removed from the database
+      const deletedProduct = await productRepository.findOne(productToDelete.id);
+      expect(deletedProduct).toBeNull();
+    });
+
+    it('should throw NotFoundException when product does not exist', async () => {
+      // Arrange
+      const nonExistentId = 9999;
+
+      // Act & Assert
+      await expect(productController.remove(nonExistentId)).rejects.toThrow(NotFoundException);
+    });
+  });
 });
