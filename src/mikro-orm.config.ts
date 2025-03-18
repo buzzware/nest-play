@@ -23,11 +23,11 @@ export default defineConfig({
     generator: TSMigrationGenerator, // migration generator, e.g. to allow custom formatting
   },
   // Ensure SQLite allows foreign keys
-  driverOptions: {
-    connection: {
-      filename: ':memory:'
-    }
-  },
+  // driverOptions: {
+  //   connection: {
+  //     filename: ':memory:'
+  //   }
+  // },
   // Disable debug logging
   debug: true,
   // Disable automatic schema creation - we'll use migrations
