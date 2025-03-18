@@ -1,15 +1,15 @@
 import { defineConfig } from '@mikro-orm/sqlite';
-import { Supplier } from './Supplier/Supplier.entity';
-import { Product } from './Product/Product.entity';
-import { Order } from './Order/Order.entity';
-import { OrderItem } from './Order/OrderItem.entity';
+import { Supplier } from '../src/Supplier/Supplier.entity';
+import { Product } from '../src/Product/Product.entity';
+import { Order } from '../src/Order/Order.entity';
+import { OrderItem } from '../src/Order/OrderItem.entity';
 import { TSMigrationGenerator } from '@mikro-orm/migrations';
 
 export default defineConfig({
   entities: [Supplier, Product, Order, OrderItem],
-  dbName: 'nest-play.db',   // ':memory:'
+  dbName: ':memory:', //'nest-play-test.db',
   migrations: {
-    tableName: 'mikro_orm_migrations', // name of database table with log of executed transactions
+    tableName: 'mikro_orm_migrations',
     path: './src/database/migrations', // path to the folder with migrations
     pathTs: './src/database/migrations', // path to the folder with TS migrations (if used, we should put path to compiled files in `path`)
     glob: '!(*.d).{js,ts}', // how to match migration files (all .js and .ts files but not .d.ts)
