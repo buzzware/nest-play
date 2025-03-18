@@ -158,6 +158,12 @@ describe('ProductController', () => {
 
   beforeAll(async () => {
     orm = await MikroORM.init(testConfig);
+
+    const connection = orm.em.getConnection();
+    await sqliteDeleteAllTables(connection);
+    migrator = orm.getMigrator();
+    await migrator.up();
+    await orm.getSeeder().seed(DatabaseSeeder);
   });
 
   afterAll(async () => {
@@ -165,11 +171,7 @@ describe('ProductController', () => {
   });
 
   beforeEach(async () => {
-    const connection = orm.em.getConnection();
-    await sqliteDeleteAllTables(connection);
-    migrator = orm.getMigrator();
-    await migrator.up();
-    await orm.getSeeder().seed(DatabaseSeeder);
+    //await orm.em.begin();
 
     // Set up the test module with real database connections
     module = await Test.createTestingModule({
@@ -187,7 +189,12 @@ describe('ProductController', () => {
   });
 
   afterEach(async () => {
-
+    // if (orm.em.isInTransaction()) {
+    //   await orm.em.rollback();
+    // }
+    //
+    //     // Clear entity manager cache
+    //     orm.em.clear();
   });
 
   describe('create', () => {
@@ -227,8 +234,9 @@ describe('ProductController', () => {
   describe('update', () => {
     it('should update and return the product when it exists', async () => {
       // Arrange - get a product ID from the seeded data
-      const products = await productRepository.findAll();
+      const products = await productRepository.findAll({orderBy: {id: 'ASC'}});
       const productToUpdate = products[0];
+      expect(productToUpdate.name).toBe('Test Product 1');
       const updateData = {
         name: 'Updated Test Product',
         price: 59.99,
