@@ -107,7 +107,7 @@ describe('ProductController', () => {
   });
 
   beforeEach(async () => {
-    const test_trx = beginTestTransaction(orm,main_trx);
+    const test_trx = await beginTestTransaction(orm,main_trx);
   });
 
   afterEach(async () => {
