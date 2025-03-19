@@ -13,11 +13,11 @@ import { OrderItem } from './Order/OrderItem.entity';
 
 @Module({
   imports: [
-    MikroOrmModule.forRoot({
-      autoLoadEntities: true, // should avoid need to provide entities array option
-      //entities: [Product, Supplier, Order, OrderItem],
-    }),
+    // Load MikroORM config from the external config file specified in package.json
+    MikroOrmModule.forRoot(),
+    // Register entities for dependency injection
     MikroOrmModule.forFeature({
+      entities: [Product, Supplier, Order, OrderItem],
     }),
   ],
   controllers: [AppController, OrderController, OrderItemController, ProductController, SupplierController],

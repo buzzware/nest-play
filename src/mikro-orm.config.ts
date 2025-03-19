@@ -1,17 +1,32 @@
-import { defineConfig } from '@mikro-orm/sqlite';
+import { defineConfig } from '@mikro-orm/postgresql';
 import { Supplier } from './Supplier/Supplier.entity';
 import { Product } from './Product/Product.entity';
 import { Order } from './Order/Order.entity';
 import { OrderItem } from './Order/OrderItem.entity';
 import { TSMigrationGenerator } from '@mikro-orm/migrations';
 
+// Environment detection
+const isTest = process.env.NODE_ENV === 'test';
+
 export default defineConfig({
+  
+  // Database connection settings
+  host: 'localhost',
+  port: 5432,
+  user: 'gary', // Using the system user that has PostgreSQL access
+  password: '', // No password if PostgreSQL is set up with trust authentication for local connections
+  
+  // Use different database names for production and test
+  dbName: isTest ? 'nest_play_t' : 'nest_play',
+  
+  // Entity configuration
   entities: [Supplier, Product, Order, OrderItem],
-  dbName: 'nest-play.db',   // ':memory:'
+  
+  // Migration configuration
   migrations: {
     tableName: 'mikro_orm_migrations', // name of database table with log of executed transactions
     path: './src/database/migrations', // path to the folder with migrations
-    pathTs: './src/database/migrations', // path to the folder with TS migrations (if used, we should put path to compiled files in `path`)
+    pathTs: './src/database/migrations', // path to the folder with TS migrations
     glob: '!(*.d).{js,ts}', // how to match migration files (all .js and .ts files but not .d.ts)
     transactional: true, // wrap each migration in a transaction
     disableForeignKeys: true, // wrap statements with `set foreign_key_checks = 0` or equivalent
@@ -22,16 +37,9 @@ export default defineConfig({
     emit: 'ts', // migration generation mode
     generator: TSMigrationGenerator, // migration generator, e.g. to allow custom formatting
   },
-  // Ensure SQLite allows foreign keys
-  // driverOptions: {
-  //   connection: {
-  //     filename: ':memory:'
-  //   }
-  // },
-  // Disable debug logging
-  debug: true,
-  // Disable automatic schema creation - we'll use migrations
+  
+  // Additional settings
+  debug: process.env.NODE_ENV !== 'production', // Only enable debug in non-production environments
   allowGlobalContext: true,
-  // Ensure we can connect to the database
   autoJoinOneToOneOwner: true,
 });

@@ -2,14 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProductController } from '../src/Product/Product.controller';
 import { Product } from '../src/Product/Product.entity';
 import { ProductRepository } from '../src/Product/Product.repository';
-import { EntityManager, MikroORM } from '@mikro-orm/sqlite';
+import { AbstractSqlConnection, EntityManager, MikroORM } from '@mikro-orm/postgresql';
 import { getRepositoryToken, MikroOrmModule } from '@mikro-orm/nestjs';
 import { NotFoundException } from '@nestjs/common';
-import testConfig from './mikro-orm.test.config';
+import testConfig from '../src/mikro-orm.config';
 import { Migrator } from '@mikro-orm/migrations';
 import { Supplier } from '../src/Supplier/Supplier.entity';
 import { DatabaseSeeder } from '../src/database/seeders/DatabaseSeeder';
-
 
 async function sqliteDeleteAllTables(connection) {
   // 1. First, get a list of all tables in the database
@@ -30,6 +29,22 @@ async function sqliteDeleteAllTables(connection) {
 
   // 4. Re-enable foreign key constraints
   await connection.execute('PRAGMA foreign_keys = ON');
+}
+
+async function postgresqlDeleteAllTables(connection: AbstractSqlConnection) {
+  const tables = await connection.execute(`
+    SELECT tablename FROM pg_tables 
+    WHERE schemaname = 'public'
+  `);
+  await connection.execute('SET session_replication_role = replica');
+  try {
+    for (const row of tables) {
+      const tableName = row.tablename;
+      await connection.execute(`DROP TABLE IF EXISTS "${tableName}" CASCADE`);
+    }
+  } finally {
+    await connection.execute('SET session_replication_role = DEFAULT');
+  }
 }
 
 describe('ProductController', () => {
@@ -160,7 +175,7 @@ describe('ProductController', () => {
     orm = await MikroORM.init(testConfig);
 
     const connection = orm.em.getConnection();
-    await sqliteDeleteAllTables(connection);
+    await postgresqlDeleteAllTables(connection);
     migrator = orm.getMigrator();
     await migrator.up();
     await orm.getSeeder().seed(DatabaseSeeder);
