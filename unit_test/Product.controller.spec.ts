@@ -106,10 +106,12 @@ describe('ProductController', () => {
   });
 
   beforeEach(async () => {
+    //const test_trx = await beginTestTransaction(orm,main_trx);
     const test_trx = await beginTestTransaction(orm);
   });
 
   afterEach(async () => {
+    //await endTestTransaction(orm, main_trx);
     await endTestTransaction(orm);
     orm.em.clear();
   });
