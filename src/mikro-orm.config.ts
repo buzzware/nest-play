@@ -9,19 +9,21 @@ import { TSMigrationGenerator } from '@mikro-orm/migrations';
 const isTest = process.env.NODE_ENV === 'test';
 
 export default defineConfig({
-  
+
   // Database connection settings
   host: 'localhost',
   port: 5432,
   user: 'gary', // Using the system user that has PostgreSQL access
   password: '', // No password if PostgreSQL is set up with trust authentication for local connections
-  
+
   // Use different database names for production and test
   dbName: isTest ? 'nest_play_t' : 'nest_play',
-  
+
   // Entity configuration
-  entities: [Supplier, Product, Order, OrderItem],
-  
+  // entities: [Supplier, Product, Order, OrderItem],
+  entities: ['dist/**/*.entity.js'],
+  entitiesTs: ['src/**/*.entity.ts'],
+
   // Migration configuration
   migrations: {
     tableName: 'mikro_orm_migrations', // name of database table with log of executed transactions
@@ -37,9 +39,10 @@ export default defineConfig({
     emit: 'ts', // migration generation mode
     generator: TSMigrationGenerator, // migration generator, e.g. to allow custom formatting
   },
-  
+
   // Additional settings
+  implicitTransactions: false,
   debug: process.env.NODE_ENV !== 'production', // Only enable debug in non-production environments
-  allowGlobalContext: true,
+  allowGlobalContext: isTest,
   autoJoinOneToOneOwner: true,
 });

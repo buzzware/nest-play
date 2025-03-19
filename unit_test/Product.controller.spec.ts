@@ -2,11 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProductController } from '../src/Product/Product.controller';
 import { Product } from '../src/Product/Product.entity';
 import { ProductRepository } from '../src/Product/Product.repository';
-import { AbstractSqlConnection, EntityManager, MikroORM } from '@mikro-orm/postgresql';
+import { AbstractSqlConnection, EntityManager, MikroORM, Transaction } from '@mikro-orm/postgresql';
 import { getRepositoryToken, MikroOrmModule } from '@mikro-orm/nestjs';
 import { NotFoundException } from '@nestjs/common';
 import testConfig from '../src/mikro-orm.config';
-import { Migrator } from '@mikro-orm/migrations';
 import { Supplier } from '../src/Supplier/Supplier.entity';
 import { DatabaseSeeder } from '../src/database/seeders/DatabaseSeeder';
 
@@ -47,27 +46,25 @@ async function postgresqlDeleteAllTables(connection: AbstractSqlConnection) {
   }
 }
 
+// async function setupDatabase(config) {
+//   const orm = await MikroORM.init(config);
+//   const connection = orm.em.getConnection();
+//   await postgresqlDeleteAllTables(connection);
+//   const migrator = orm.getMigrator();
+//   await migrator.up();
+//   await orm.getSeeder().seed(DatabaseSeeder);
+//   await orm.close();
+//   return orm;
+// }
+
 describe('ProductController', () => {
   let productController: ProductController;
   let productRepository: ProductRepository;
   let orm: MikroORM;
   let module: TestingModule;
+  let main_trx: Transaction;
 
   beforeAll(async () => {
-    orm = await MikroORM.init(testConfig);
-
-    const connection = orm.em.getConnection();
-    await postgresqlDeleteAllTables(connection);
-    const migrator = orm.getMigrator()
-    await migrator.up();
-    await orm.getSeeder().seed(DatabaseSeeder);
-  });
-
-  afterAll(async () => {
-    await orm.close(true);
-  });
-
-  beforeEach(async () => {
     module = await Test.createTestingModule({
       imports: [
         MikroOrmModule.forRoot(testConfig),
@@ -77,13 +74,57 @@ describe('ProductController', () => {
       ],
       controllers: [ProductController],
     }).compile();
+    orm = module.get(MikroORM);
+
+    const connection = orm.em.getConnection();
+    await postgresqlDeleteAllTables(connection);
+    const migrator = orm.getMigrator();
+    await migrator.up();
+    await orm.getSeeder().seed(DatabaseSeeder);
+
+    main_trx = await orm.em.getConnection().begin();
+    orm.em.setTransactionContext(main_trx);
 
     productRepository = module.get<ProductRepository>(getRepositoryToken(Product));
     productController = module.get<ProductController>(ProductController);
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
+    await orm.em.getConnection().rollback(main_trx);
+    await orm.close(true);
+    await module.close();
   });
+
+  beforeEach(async () => {
+    const test_trx = await orm.em.getConnection().begin({ ctx: main_trx });
+    orm.em.setTransactionContext(test_trx);
+  });
+
+  afterEach(async () => {
+    const test_trx = orm.em.getTransactionContext();
+    await orm.em.getConnection().rollback(test_trx);
+    orm.em.setTransactionContext(main_trx);
+
+    orm.em.clear();
+  });
+
+  // beforeEach(async () => {
+  //   const orm = app.get<MikroORM>(MikroORM);
+  //   await orm.em.begin();
+  // });
+  //
+  // afterEach(async () => {
+  //   const orm = app.get<MikroORM>(MikroORM);
+  //   await orm.em.rollback();
+  //   orm.em.clear();
+  // });
+  //
+  // afterAll(async () => {
+  //   await app.close();
+  // });
+
+
+
 
   describe('findAll', () => {
     it('should return an array of products', async () => {
@@ -151,7 +192,11 @@ describe('ProductController', () => {
   });
 
   describe('update', () => {
+
     it('should update and return the product when it exists', async () => {
+      const productNames = (await productRepository.findAll()).map(p => p.name);
+      expect(productNames).not.toContain('Updated Test Product');
+
       const products = await productRepository.findAll({orderBy: {id: 'ASC'}});
       const productToUpdate = products[0];
       expect(productToUpdate.name).toBe('Test Product 1');
@@ -176,6 +221,11 @@ describe('ProductController', () => {
         expect(updatedProduct.name).toBe(updateData.name);
         expect(updatedProduct.price).toBe(updateData.price);
       }
+    });
+
+    it('should be wrapped in a transaction', async ()=> {
+      const productNames = (await productRepository.findAll()).map(p => p.name);
+      expect(productNames).not.toContain('Updated Test Product');
     });
 
     it('should throw NotFoundException when product does not exist', async () => {
