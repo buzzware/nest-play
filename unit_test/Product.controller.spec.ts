@@ -86,7 +86,7 @@ describe('ProductController', () => {
   let productRepository: ProductRepository;
   let orm: MikroORM;
   let module: TestingModule;
-  let main_trx: Transaction;
+  //let main_trx: Transaction;
 
   beforeAll(async () => {
     module  = await setupTestModule(testConfig,[Product],[ProductController]);
@@ -96,22 +96,21 @@ describe('ProductController', () => {
     productRepository = module.get<ProductRepository>(getRepositoryToken(Product));
     productController = module.get<ProductController>(ProductController);
 
-    main_trx = await beginTestTransaction(orm);
+    //main_trx = await beginTestTransaction(orm);
   });
 
   afterAll(async () => {
-    //await orm.em.getConnection().rollback(main_trx);
-    await endTestTransaction(orm);
+    //await endTestTransaction(orm);
     await orm.close(true);
     await module.close();
   });
 
   beforeEach(async () => {
-    const test_trx = await beginTestTransaction(orm,main_trx);
+    const test_trx = await beginTestTransaction(orm);
   });
 
   afterEach(async () => {
-    await endTestTransaction(orm, main_trx);
+    await endTestTransaction(orm);
     orm.em.clear();
   });
 
