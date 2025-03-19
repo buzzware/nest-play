@@ -2,12 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProductController } from '../src/Product/Product.controller';
 import { Product } from '../src/Product/Product.entity';
 import { ProductRepository } from '../src/Product/Product.repository';
-import { AbstractSqlConnection, EntityManager, MikroORM, Transaction } from '@mikro-orm/postgresql';
-import { getRepositoryToken, MikroOrmModule } from '@mikro-orm/nestjs';
-import { NotFoundException } from '@nestjs/common';
+import { AbstractSqlConnection, AnyEntity, EntityManager, MikroORM, Transaction } from '@mikro-orm/postgresql';
+import { EntityName, getRepositoryToken, MikroOrmModule } from '@mikro-orm/nestjs';
+import { NotFoundException, Type } from '@nestjs/common';
 import testConfig from '../src/mikro-orm.config';
 import { Supplier } from '../src/Supplier/Supplier.entity';
 import { DatabaseSeeder } from '../src/database/seeders/DatabaseSeeder';
+import { PostgreSqlMikroORM } from '@mikro-orm/postgresql/PostgreSqlMikroORM';
 
 async function sqliteDeleteAllTables(connection: AbstractSqlConnection) {
   // 1. First, get a list of all tables in the database
@@ -46,16 +47,39 @@ async function postgresqlDeleteAllTables(connection: AbstractSqlConnection) {
   }
 }
 
-// async function setupDatabase(config) {
-//   const orm = await MikroORM.init(config);
-//   const connection = orm.em.getConnection();
-//   await postgresqlDeleteAllTables(connection);
-//   const migrator = orm.getMigrator();
-//   await migrator.up();
-//   await orm.getSeeder().seed(DatabaseSeeder);
-//   await orm.close();
-//   return orm;
-// }
+async function setupTestModule(config, entities: EntityName<AnyEntity>[], controllers: Type<any>[]) {
+  const module = await Test.createTestingModule({
+    imports: [
+      MikroOrmModule.forRoot(config),
+      MikroOrmModule.forFeature({
+        entities,
+      }),
+    ],
+    controllers,
+  }).compile();
+  return module;
+}
+
+async function migrateAndSeedDatabase(orm: MikroORM) {
+  const connection = orm.em.getConnection();
+  await postgresqlDeleteAllTables(connection);
+  const migrator = orm.getMigrator();
+  await migrator.up();
+  await orm.getSeeder().seed(DatabaseSeeder);
+}
+
+async function beginTestTransaction(orm: PostgreSqlMikroORM, parent_trx?) {
+  const trx = await orm.em.getConnection().begin(parent_trx && {ctx: parent_trx});
+  orm.em.setTransactionContext(trx);
+  return trx;
+}
+
+async function endTestTransaction(orm: MikroORM, parent_trx?: any) {
+  const test_trx = orm.em.getTransactionContext();
+  await orm.em.getConnection().rollback(test_trx);
+  if (parent_trx)
+    orm.em.setTransactionContext(parent_trx);
+}
 
 describe('ProductController', () => {
   let productController: ProductController;
@@ -65,66 +89,31 @@ describe('ProductController', () => {
   let main_trx: Transaction;
 
   beforeAll(async () => {
-    module = await Test.createTestingModule({
-      imports: [
-        MikroOrmModule.forRoot(testConfig),
-        MikroOrmModule.forFeature({
-          entities: [Product, Supplier],
-        }),
-      ],
-      controllers: [ProductController],
-    }).compile();
+    module  = await setupTestModule(testConfig,[Product],[ProductController]);
     orm = module.get(MikroORM);
-
-    const connection = orm.em.getConnection();
-    await postgresqlDeleteAllTables(connection);
-    const migrator = orm.getMigrator();
-    await migrator.up();
-    await orm.getSeeder().seed(DatabaseSeeder);
-
-    main_trx = await orm.em.getConnection().begin();
-    orm.em.setTransactionContext(main_trx);
+    await migrateAndSeedDatabase(orm);
 
     productRepository = module.get<ProductRepository>(getRepositoryToken(Product));
     productController = module.get<ProductController>(ProductController);
+
+    main_trx = await beginTestTransaction(orm);
   });
 
   afterAll(async () => {
-    await orm.em.getConnection().rollback(main_trx);
+    //await orm.em.getConnection().rollback(main_trx);
+    await endTestTransaction(orm);
     await orm.close(true);
     await module.close();
   });
 
   beforeEach(async () => {
-    const test_trx = await orm.em.getConnection().begin({ ctx: main_trx });
-    orm.em.setTransactionContext(test_trx);
+    const test_trx = beginTestTransaction(orm,main_trx);
   });
 
   afterEach(async () => {
-    const test_trx = orm.em.getTransactionContext();
-    await orm.em.getConnection().rollback(test_trx);
-    orm.em.setTransactionContext(main_trx);
-
+    await endTestTransaction(orm, main_trx);
     orm.em.clear();
   });
-
-  // beforeEach(async () => {
-  //   const orm = app.get<MikroORM>(MikroORM);
-  //   await orm.em.begin();
-  // });
-  //
-  // afterEach(async () => {
-  //   const orm = app.get<MikroORM>(MikroORM);
-  //   await orm.em.rollback();
-  //   orm.em.clear();
-  // });
-  //
-  // afterAll(async () => {
-  //   await app.close();
-  // });
-
-
-
 
   describe('findAll', () => {
     it('should return an array of products', async () => {
