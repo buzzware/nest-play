@@ -7,6 +7,7 @@ import { TSMigrationGenerator } from '@mikro-orm/migrations';
 
 // Environment detection
 const isTest = process.env.NODE_ENV === 'test';
+const isProduction = process.env.NODE_ENV == 'production';
 
 export default defineConfig({
 
@@ -42,7 +43,7 @@ export default defineConfig({
 
   // Additional settings
   implicitTransactions: false,
-  debug: process.env.NODE_ENV !== 'production', // Only enable debug in non-production environments
+  debug: !isProduction, // Only enable debug in non-production environments
   allowGlobalContext: isTest,
   autoJoinOneToOneOwner: true,
 });
